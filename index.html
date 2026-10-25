@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WELL - X | Intelligent Well Diagnostics</title>
+<meta name="description" content="WELL - X is an oilfield diagnostics and production analysis platform concept for investigating underperforming wells, examining production trends, and exploring intervention scenarios.">
+<meta name="theme-color" content="#08090B">
+<!-- DEPLOYMENT: replace YOUR-DEPLOYED-DOMAIN in og:image, og:url and twitter:image with the real public HTTPS domain -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="WELL - X">
+<meta property="og:title" content="WELL - X | Intelligent Well Diagnostics">
+<meta property="og:description" content="Explore well performance, production trends, simulated diagnostic findings, and intervention scenarios through WELL - X.">
+<meta property="og:image" content="https://YOUR-DEPLOYED-DOMAIN/og-image.png">
+<meta property="og:image:alt" content="WELL - X — Intelligent Well Diagnostics">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://YOUR-DEPLOYED-DOMAIN/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="WELL - X | Intelligent Well Diagnostics">
+<meta name="twitter:description" content="An engineering-focused oil-well analysis and decision-support platform simulation.">
+<meta name="twitter:image" content="https://YOUR-DEPLOYED-DOMAIN/og-image.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="loader" role="status" aria-live="polite">
+  <div class="ld-brand">WELL - X</div>
+  <div class="ld-sub">INITIALIZING WELL ANALYSIS SYSTEM</div>
+  <div class="ld-bar"><i id="ldBar"></i></div>
+  <div class="ld-msg" id="ldMsg">INITIALIZING SYSTEM</div>
+</div>
+
+<div class="app">
+  <aside class="side" id="side" aria-label="Primary">
+    <div class="brand">WELL - X</div>
+    <nav id="nav"></nav>
+    <div class="sys"><span>SYSTEM STATUS</span><b>SIMULATION MODE</b></div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <button id="menuBtn" class="ib" aria-label="Open navigation" aria-expanded="false" aria-controls="side">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <div class="tt"><div class="crumb" id="crumb"></div><h1 id="title"></h1></div>
+      <div class="top-r"><span class="pill">SIMULATION MODE</span><time id="today"></time></div>
+    </header>
+
+    <main id="content">
+      <section id="p-overview" class="page" aria-label="Overview">
+        <div class="note">DEMONSTRATION DATA — all well records and values in this version are fictional.</div>
+        <div class="kpis" id="kpis"></div>
+        <div class="bar">
+          <label>Search<input id="q" type="search" placeholder="Well ID or field"></label>
+          <label>Status<select id="stf"></select></label>
+        </div>
+        <div class="tw"><table id="inv"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section id="p-analysis" class="page" aria-label="Well Analysis" hidden>
+        <div class="bar">
+          <label>Well<select id="wsel"></select></label>
+          <label>Reporting period<select id="per"><option value="30">Last 30 days</option><option value="90" selected>Last 90 days</option><option value="180">Last 180 days</option></select></label>
+          <button class="btn" id="analyse">Analyse Well</button>
+        </div>
+        <div class="ahead" id="ahead"></div>
+        <div class="panel" id="winfo"></div>
+        <div class="grid2" id="charts"></div>
+        <div class="panel"><h2>Production observations</h2><ul id="obs"></ul></div>
+        <div class="panel">
+          <div class="vh"><h2>ILLUSTRATIVE 3D WELL MODEL</h2><small>SIMULATED GEOMETRY — NOT REAL SUBSURFACE DATA</small></div>
+          <div class="tools" role="toolbar" aria-label="3D view controls">
+            <button class="btn s sq" data-act="in" aria-label="Zoom in">+</button>
+            <button class="btn s sq" data-act="out" aria-label="Zoom out">−</button>
+            <button class="btn s" data-act="reset">Reset view</button>
+            <button class="btn s" data-act="fit">Fit to view</button>
+            <span class="sep"></span>
+            <button class="btn s" data-act="full">Full well</button>
+            <button class="btn s" data-act="head">Wellhead</button>
+            <button class="btn s" data-act="res">Reservoir zone</button>
+          </div>
+          <div class="tools">
+            <label class="chk"><input type="checkbox" data-l="geo" checked>Geological layers</label>
+            <label class="chk"><input type="checkbox" data-l="well" checked>Well trajectory</label>
+            <label class="chk"><input type="checkbox" data-l="tgt" checked>Target interval</label>
+            <label class="chk"><input type="checkbox" data-l="grid" checked>Reference grid</label>
+          </div>
+          <div class="cv"><canvas id="cv" role="img" aria-label="Interactive projected 3D model of a fictional well. Drag to rotate, right-drag or shift-drag to pan, scroll or pinch to zoom."></canvas></div>
+          <p class="hint">Drag: rotate · Shift/right-drag: pan · Wheel or pinch: zoom · Two-finger drag: pan</p>
+        </div>
+        <div id="result" aria-live="polite"></div>
+      </section>
+
+      <section id="p-surveillance" class="page" aria-label="Production Surveillance" hidden>
+        <div class="note">Same fictional dataset as the Overview. Select a well to review its last 90 days.</div>
+        <div class="bar"><label>Status<select id="svst"></select></label></div>
+        <div class="tw"><table id="sv"></table></div>
+        <div id="svd"></div>
+      </section>
+
+      <section id="p-intervention" class="page" aria-label="Intervention Assessment" hidden>
+        <div class="note">Illustrative scenarios with fictional baseline assumptions — not recommendations for a real well. Calculations are simplified, not a petroleum economics model.</div>
+        <div class="bar">
+          <label>Well<select id="iw"></select></label>
+          <label>Oil price (USD/bbl)<input id="price" type="number" min="0" step="any" value="75"></label>
+        </div>
+        <div class="ahead" id="ivb"></div>
+        <div class="tw"><table id="iv"></table></div>
+        <p class="hint">Additional daily revenue = incremental oil × oil price (gross revenue, not profit). Net daily benefit = additional revenue − additional daily operating cost. Simple payback = intervention cost ÷ net daily benefit.</p>
+      </section>
+
+      <section id="p-reports" class="page" aria-label="Reports" hidden>
+        <div id="rep"></div>
+        <div id="rview"></div>
+      </section>
+    </main>
+  </div>
+</div>
+<script src="script.js"></script>
+</body>
+  </html>
