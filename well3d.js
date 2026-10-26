@@ -55,7 +55,8 @@ function build(w){
       uv.push(0,0, 1,0, 1,1, 0,1);
       idx.push(base,base+1,base+2, base,base+2,base+3);
     };
-    const x0=-30,x1=30,z0=-30,z1=30,yt=-l.top,yb=-(l.top+l.h);
+    /* Geometry is centered locally; the mesh is positioned at the layer's world-space center below. */
+    const x0=-30,x1=30,z0=-30,z1=30,yt=l.h/2,yb=-l.h/2;
     quad([x0,yb,z1],[x1,yb,z1],[x1,yt,z1],[x0,yt,z1]);
     quad([x1,yb,z0],[x0,yb,z0],[x0,yt,z0],[x1,yt,z0]);
     quad([x1,yb,z1],[x1,yb,z0],[x1,yt,z0],[x1,yt,z1]);
