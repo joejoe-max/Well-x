@@ -167,11 +167,24 @@ function loop(now){
 const run=()=>{if(!raf&&vsb&&!document.hidden){last=performance.now();raf=requestAnimationFrame(loop)}},stop=()=>{cancelAnimationFrame(raf);raf=0};
 new IntersectionObserver(e=>{vsb=e[0].isIntersecting;vsb?run():stop()}).observe(box);
 document.addEventListener('visibilitychange',()=>document.hidden?stop():run());
-new ResizeObserver(()=>{
-  const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return;
+function resizeAndDraw(){
+  const w=box.clientWidth,h=box.clientHeight;if(!w||!h)return false;
   R.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();W=w;H=h;
   if(!placed&&cfg){placed=true;setView('full',true)}
-}).observe(box);
-return{show(w){if(curId!==w.id){curId=w.id;build(w);if(placed)tw=null}if(!placed&&box.clientWidth){placed=true;setView('full',true)}}};
+  R.render(sc,cam);
+  return true;
+}
+new ResizeObserver(()=>{resizeAndDraw();if(box.getBoundingClientRect().width>0)run()}).observe(box);
+return{show(w){
+  try{
+    if(curId!==w.id){curId=w.id;build(w);if(placed)tw=null}
+    resizeAndDraw();
+    vsb=box.getBoundingClientRect().width>0&&box.getBoundingClientRect().height>0;
+    if(vsb)run();
+  }catch(e){
+    console.error('WELL-X 3D model failed to initialize:',e);
+    const f=$('#wfall');f.hidden=false;f.textContent='The 3D well model could not initialize. Check the browser console for details.';
+  }
+}};
 })();
 if(!$('#p-analysis').hidden)Well3D.show(cur());
