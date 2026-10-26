@@ -47,11 +47,12 @@ function build(w){
   /* Geological strata are ONE mesh with material groups.
      Separate overlapping layer meshes can fight at shared boundaries; a single
      indexed surface gives every visible wall exactly one owner. */
+  const seamColor='#17191d';
   const strataMats=c.layers.map(l=>clipM(M(l.c,{
     map:null,transparent:false,opacity:1,
-    emissive:l.n.startsWith('Oil')?'#3a2406':'#000000',
-    polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1
+    emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'
   })));
+  strataMats.push(clipM(M(seamColor,{map:null,transparent:false,opacity:1})));
   layerMats=strataMats;
   function buildStrataGeometry(layers){
     const positions=[],uvs=[],indices=[],groupsOut=[];
@@ -63,14 +64,28 @@ function build(w){
       groupsOut.push({start:indexStart,count:6,materialIndex});
       vertex+=4;indexStart+=6;
     };
-    const x0=-30,x1=30,z0=-30,z1=30;
-    layers.forEach((l,i)=>{
+    const x0=-30,x1=30,z0=-30,z1=30,zSeam=.12;
+    const wall=(l,i,face)=>{
       const top=-l.top,bottom=-(l.top+l.h);
-      // Four exterior walls, split exactly at formation boundaries.
-      quad([x0,bottom,z1],[x1,bottom,z1],[x1,top,z1],[x0,top,z1],i);
-      quad([x1,bottom,z0],[x0,bottom,z0],[x0,top,z0],[x1,top,z0],i);
-      quad([x1,bottom,z1],[x1,bottom,z0],[x1,top,z0],[x1,top,z1],i);
-      quad([x0,bottom,z0],[x0,bottom,z1],[x0,top,z1],[x0,top,z0],i);
+      const lo=bottom+(i===layers.length-1?0:zSeam/2);
+      const hi=top-(i===0?0:zSeam/2);
+      // Leave a deliberate narrow seam at each interface; fill it with a
+      // dark band in this same mesh so adjacent colors cannot bleed together.
+      if(face===0)quad([x0,lo,z1],[x1,lo,z1],[x1,hi,z1],[x0,hi,z1],i);
+      if(face===1)quad([x1,lo,z0],[x0,lo,z0],[x0,hi,z0],[x1,hi,z0],i);
+      if(face===2)quad([x1,lo,z1],[x1,lo,z0],[x1,hi,z0],[x1,hi,z1],i);
+      if(face===3)quad([x0,lo,z0],[x0,lo,z1],[x0,hi,z1],[x0,hi,z0],i);
+      if(i>0){
+        const sy=top-zSeam/2,by=top+zSeam/2;
+        if(face===0)quad([x0,by,z1],[x1,by,z1],[x1,sy,z1],[x0,sy,z1],layers.length);
+        if(face===1)quad([x1,by,z0],[x0,by,z0],[x0,sy,z0],[x1,sy,z0],layers.length);
+        if(face===2)quad([x1,by,z1],[x1,by,z0],[x1,sy,z0],[x1,sy,z1],layers.length);
+        if(face===3)quad([x0,by,z0],[x0,by,z1],[x0,sy,z1],[x0,sy,z0],layers.length);
+      }
+    };
+    layers.forEach((l,i)=>{
+      for(let face=0;face<4;face++)wall(l,i,face);
+      const top=-l.top,bottom=-(l.top+l.h);
       if(i===0)quad([x0,top,z0],[x1,top,z0],[x1,top,z1],[x0,top,z1],i);
       if(i===layers.length-1)quad([x0,bottom,z1],[x1,bottom,z1],[x1,bottom,z0],[x0,bottom,z0],i);
     });
