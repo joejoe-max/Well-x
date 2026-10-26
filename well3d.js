@@ -165,7 +165,7 @@ function build(w){
 function applyToggles(){
   // Switch between two explicit geological shells instead of clipping one
   // shell at z=0. This avoids coplanar/clipped strata boundaries.
-  plane.constant=0;
+  plane.constant=cutOn?0:1e4;
   if(groups.geo){
     const shells=groups.geo.children.filter(o=>o.userData&&o.userData.info&&o.userData.info[0].startsWith('Geological formations'));
     shells.forEach(o=>{o.visible=cutOn?o.userData.info[0].includes('(cutaway)'):!o.userData.info[0].includes('(cutaway)')});
