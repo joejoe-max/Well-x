@@ -68,7 +68,7 @@ function build(w){
     g.setIndex(idx);g.computeVertexNormals();return g;
   }
   c.layers.forEach((l,index)=>{
-    const m=clipM(M(l.c,{map:noise,transparent:true,emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'}));layerMats.push(m);
+    const m=clipM(M(l.c,{map:noise,transparent:false,emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'}));layerMats.push(m);
     const me=add(geoG,new T.Mesh(strataGeometry(l,index,c.layers.length),m),l.n,`${l.n}: synthetic layer, ${l.top}–${l.top+l.h} depth units. Not real formation data.`);
     me.position.y=-(l.top+l.h/2);
     /* Layer colours distinguish formations; avoid coplanar outline meshes, which can
@@ -126,7 +126,7 @@ function build(w){
 }
 function applyToggles(){
   plane.constant=cutOn?0:1e4;
-  layerMats.forEach(m=>{m.transparent=!cutOn;m.opacity=cutOn?1:.22;m.depthWrite=cutOn;m.needsUpdate=true});
+  layerMats.forEach(m=>{const transparent=!cutOn;m.transparent=transparent;m.opacity=cutOn?1:.22;m.depthWrite=!transparent;m.needsUpdate=true});
   pts.visible=flowOn&&N>0;
   $$('[data-t]').forEach(c=>{const t=c.dataset.t;if(t==='geo'&&groups.geo)groups.geo.visible=c.checked;if(t==='pipes'&&groups.pipes)groups.pipes.visible=c.checked;if(t==='labels')lbl.hidden=!c.checked});
 }
