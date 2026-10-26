@@ -44,12 +44,31 @@ function build(w){
   const M=(color,o={})=>new T.MeshStandardMaterial({color,roughness:.8,metalness:0,...o});
   const clipM=m=>{m.clippingPlanes=[plane];m.side=T.DoubleSide;return m};
   const add=(g,m,name,desc)=>{m.userData={info:[name,desc],em:m.material.emissive?m.material.emissive.getHex():0};g.add(m);pick.push(m);return m};
-  /* geological layers */
-  c.layers.forEach(l=>{
+  /* Geological strata: build side walls only for internal layer boundaries.
+     Adjacent BoxGeometry meshes each had their own coplanar top/bottom faces;
+     those faces compete in the depth buffer when the camera tilts. */
+  function strataGeometry(l,index,total){
+    const g=new T.BufferGeometry(),p=[],uv=[],idx=[];
+    const quad=(a,b,c,d)=>{
+      const base=p.length/3;
+      for(const v of [a,b,c,d])p.push(...v);
+      uv.push(0,0, 1,0, 1,1, 0,1);
+      idx.push(base,base+1,base+2, base,base+2,base+3);
+    };
+    const x0=-30,x1=30,z0=-30,z1=30,yt=-l.top,yb=-(l.top+l.h);
+    quad([x0,yb,z1],[x1,yb,z1],[x1,yt,z1],[x0,yt,z1]);
+    quad([x1,yb,z0],[x0,yb,z0],[x0,yt,z0],[x1,yt,z0]);
+    quad([x1,yb,z1],[x1,yb,z0],[x1,yt,z0],[x1,yt,z1]);
+    quad([x0,yb,z0],[x0,yb,z1],[x0,yt,z1],[x0,yt,z0]);
+    if(index===0)quad([x0,yt,z0],[x1,yt,z0],[x1,yt,z1],[x0,yt,z1]);
+    if(index===total-1)quad([x0,yb,z1],[x1,yb,z1],[x1,yb,z0],[x0,yb,z0]);
+    g.setAttribute('position',new T.Float32BufferAttribute(p,3));
+    g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
+    g.setIndex(idx);g.computeVertexNormals();return g;
+  }
+  c.layers.forEach((l,index)=>{
     const m=clipM(M(l.c,{map:noise,transparent:true,emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'}));layerMats.push(m);
-    /* Give adjacent strata a tiny overlap so their shared horizontal faces are never coplanar. Coplanar faces can z-fight as the camera moves, making formation colors blink or appear to bleed together. */
-    const seamOverlap=.06;
-    const me=add(geoG,new T.Mesh(new T.BoxGeometry(60,l.h+seamOverlap,60),m),l.n,`${l.n}: synthetic layer, ${l.top}–${l.top+l.h} depth units. Not real formation data.`);
+    const me=add(geoG,new T.Mesh(strataGeometry(l,index,c.layers.length),m),l.n,`${l.n}: synthetic layer, ${l.top}–${l.top+l.h} depth units. Not real formation data.`);
     me.position.y=-(l.top+l.h/2);
     /* Layer colours distinguish formations; avoid coplanar outline meshes, which can
        compete with the layer faces in the depth buffer during camera movement. */
