@@ -47,7 +47,9 @@ function build(w){
   /* geological layers */
   c.layers.forEach(l=>{
     const m=clipM(M(l.c,{map:noise,transparent:true,emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'}));layerMats.push(m);
-    const me=add(geoG,new T.Mesh(new T.BoxGeometry(60,l.h,60),m),l.n,`${l.n}: synthetic layer, ${l.top}–${l.top+l.h} depth units. Not real formation data.`);
+    /* Give adjacent strata a tiny overlap so their shared horizontal faces are never coplanar. Coplanar faces can z-fight as the camera moves, making formation colors blink or appear to bleed together. */
+    const seamOverlap=.06;
+    const me=add(geoG,new T.Mesh(new T.BoxGeometry(60,l.h+seamOverlap,60),m),l.n,`${l.n}: synthetic layer, ${l.top}–${l.top+l.h} depth units. Not real formation data.`);
     me.position.y=-(l.top+l.h/2);
     /* Layer colours distinguish formations; avoid coplanar outline meshes, which can
        compete with the layer faces in the depth buffer during camera movement. */
