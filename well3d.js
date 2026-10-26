@@ -44,36 +44,47 @@ function build(w){
   const M=(color,o={})=>new T.MeshStandardMaterial({color,roughness:.8,metalness:0,...o});
   const clipM=m=>{m.clippingPlanes=[plane];m.side=T.DoubleSide;return m};
   const add=(g,m,name,desc)=>{m.userData={info:[name,desc],em:m.material.emissive?m.material.emissive.getHex():0};g.add(m);pick.push(m);return m};
-  /* Geological strata: build side walls only for internal layer boundaries.
-     Adjacent BoxGeometry meshes each had their own coplanar top/bottom faces;
-     those faces compete in the depth buffer when the camera tilts. */
-  function strataGeometry(l,index,total){
-    const g=new T.BufferGeometry(),p=[],uv=[],idx=[];
-    const quad=(a,b,c,d)=>{
-      const base=p.length/3;
-      for(const v of [a,b,c,d])p.push(...v);
-      uv.push(0,0, 1,0, 1,1, 0,1);
-      idx.push(base,base+1,base+2, base,base+2,base+3);
+  /* Geological strata are ONE mesh with material groups.
+     Separate overlapping layer meshes can fight at shared boundaries; a single
+     indexed surface gives every visible wall exactly one owner. */
+  const strataMats=c.layers.map(l=>clipM(M(l.c,{
+    map:null,transparent:false,opacity:1,
+    emissive:l.n.startsWith('Oil')?'#3a2406':'#000000',
+    polygonOffset:true,polygonOffsetFactor:1,polygonOffsetUnits:1
+  })));
+  layerMats=strataMats;
+  function buildStrataGeometry(layers){
+    const positions=[],uvs=[],indices=[],groupsOut=[];
+    let vertex=0,indexStart=0;
+    const quad=(a,b,c,d,materialIndex)=>{
+      for(const v of [a,b,c,d])positions.push(v[0],v[1],v[2]);
+      uvs.push(0,0,1,0,1,1,0,1);
+      indices.push(vertex,vertex+1,vertex+2,vertex,vertex+2,vertex+3);
+      groupsOut.push({start:indexStart,count:6,materialIndex});
+      vertex+=4;indexStart+=6;
     };
-    /* Geometry is centered locally; the mesh is positioned at the layer's world-space center below. */
-    const x0=-30,x1=30,z0=-30,z1=30,yt=l.h/2,yb=-l.h/2;
-    quad([x0,yb,z1],[x1,yb,z1],[x1,yt,z1],[x0,yt,z1]);
-    quad([x1,yb,z0],[x0,yb,z0],[x0,yt,z0],[x1,yt,z0]);
-    quad([x1,yb,z1],[x1,yb,z0],[x1,yt,z0],[x1,yt,z1]);
-    quad([x0,yb,z0],[x0,yb,z1],[x0,yt,z1],[x0,yt,z0]);
-    if(index===0)quad([x0,yt,z0],[x1,yt,z0],[x1,yt,z1],[x0,yt,z1]);
-    if(index===total-1)quad([x0,yb,z1],[x1,yb,z1],[x1,yb,z0],[x0,yb,z0]);
-    g.setAttribute('position',new T.Float32BufferAttribute(p,3));
-    g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));
-    g.setIndex(idx);g.computeVertexNormals();return g;
+    const x0=-30,x1=30,z0=-30,z1=30;
+    layers.forEach((l,i)=>{
+      const top=-l.top,bottom=-(l.top+l.h);
+      // Four exterior walls, split exactly at formation boundaries.
+      quad([x0,bottom,z1],[x1,bottom,z1],[x1,top,z1],[x0,top,z1],i);
+      quad([x1,bottom,z0],[x0,bottom,z0],[x0,top,z0],[x1,top,z0],i);
+      quad([x1,bottom,z1],[x1,bottom,z0],[x1,top,z0],[x1,top,z1],i);
+      quad([x0,bottom,z0],[x0,bottom,z1],[x0,top,z1],[x0,top,z0],i);
+      if(i===0)quad([x0,top,z0],[x1,top,z0],[x1,top,z1],[x0,top,z1],i);
+      if(i===layers.length-1)quad([x0,bottom,z1],[x1,bottom,z1],[x1,bottom,z0],[x0,bottom,z0],i);
+    });
+    const g=new T.BufferGeometry();
+    g.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+    g.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));
+    g.setIndex(indices);
+    groupsOut.forEach(gr=>g.addGroup(gr.start,gr.count,gr.materialIndex));
+    g.computeVertexNormals();
+    return g;
   }
-  c.layers.forEach((l,index)=>{
-    const m=clipM(M(l.c,{map:noise,transparent:false,emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'}));layerMats.push(m);
-    const me=add(geoG,new T.Mesh(strataGeometry(l,index,c.layers.length),m),l.n,`${l.n}: synthetic layer, ${l.top}–${l.top+l.h} depth units. Not real formation data.`);
-    me.position.y=-(l.top+l.h/2);
-    /* Layer colours distinguish formations; avoid coplanar outline meshes, which can
-       compete with the layer faces in the depth buffer during camera movement. */
-  });
+  const strata=add(geoG,new T.Mesh(buildStrataGeometry(c.layers),strataMats),
+    'Geological formations','Synthetic geological formation layers. Select the colored outer walls to inspect the model.');
+  strata.renderOrder=0;
   /* trajectory + pipe strings (separate hollow tubes along the path) */
   CV=new T.CatmullRomCurve3(c.pts.map(([x,y])=>V3(x,y,0)));
   const tube=(u0,u1,r,m,n=40)=>{const p=[];for(let k=0;k<=n;k++)p.push(CV.getPointAt(u0+(u1-u0)*k/n));return new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(p),n*2,r,20,false),m)};
