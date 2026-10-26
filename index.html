@@ -6,7 +6,7 @@
 <title>WELL - X | Intelligent Well Diagnostics</title>
 <meta name="description" content="WELL - X is an oilfield diagnostics and production analysis platform concept for investigating underperforming wells, examining production trends, and exploring intervention scenarios.">
 <meta name="theme-color" content="#08090B">
-<!-- DEPLOYMENT: replace YOUR-DEPLOYED-DOMAIN in og:image, og:url and twitter:image with the real public HTTPS domain -->
+
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="WELL - X">
 <meta property="og:title" content="WELL - X | Intelligent Well Diagnostics">
@@ -15,7 +15,7 @@
 <meta property="og:image:alt" content="WELL - X — Intelligent Well Diagnostics">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:url" content="https://well-x.pxxl.space/">
+<meta property="og:url" content="https://well-x.pxxl.click">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="WELL - X | Intelligent Well Diagnostics">
 <meta name="twitter:description" content="An engineering-focused oil-well analysis and decision-support platform simulation.">
@@ -69,24 +69,33 @@
         <div class="panel"><h2>Production observations</h2><ul id="obs"></ul></div>
         <div class="panel">
           <div class="vh"><h2>ILLUSTRATIVE 3D WELL MODEL</h2><small>SIMULATED GEOMETRY — NOT REAL SUBSURFACE DATA</small></div>
-          <div class="tools" role="toolbar" aria-label="3D view controls">
-            <button class="btn s sq" data-act="in" aria-label="Zoom in">+</button>
-            <button class="btn s sq" data-act="out" aria-label="Zoom out">−</button>
-            <button class="btn s" data-act="reset">Reset view</button>
-            <button class="btn s" data-act="fit">Fit to view</button>
+          <div class="tools" role="toolbar" aria-label="3D camera controls">
+            <button class="btn s sq" data-v="in" aria-label="Zoom in">+</button>
+            <button class="btn s sq" data-v="out" aria-label="Zoom out">−</button>
+            <button class="btn s" data-v="reset">Reset</button>
+            <button class="btn s" data-v="fit">Fit to view</button>
             <span class="sep"></span>
-            <button class="btn s" data-act="full">Full well</button>
-            <button class="btn s" data-act="head">Wellhead</button>
-            <button class="btn s" data-act="res">Reservoir zone</button>
+            <button class="btn s" data-v="full">Full well</button>
+            <button class="btn s" data-v="top">Surface view</button>
+            <button class="btn s" data-v="res">Reservoir</button>
+            <button class="btn s" data-v="bh">Bottom hole</button>
           </div>
           <div class="tools">
-            <label class="chk"><input type="checkbox" data-l="geo" checked>Geological layers</label>
-            <label class="chk"><input type="checkbox" data-l="well" checked>Well trajectory</label>
-            <label class="chk"><input type="checkbox" data-l="tgt" checked>Target interval</label>
-            <label class="chk"><input type="checkbox" data-l="grid" checked>Reference grid</label>
+            <label class="chk"><input type="checkbox" data-t="cut" checked>Cutaway</label>
+            <label class="chk"><input type="checkbox" data-t="geo" checked>Geological layers</label>
+            <label class="chk"><input type="checkbox" data-t="pipes" checked>Casing &amp; tubing</label>
+            <label class="chk"><input type="checkbox" data-t="flow" checked>Flow animation</label>
+            <label class="chk"><input type="checkbox" data-t="labels" checked>Labels</label>
           </div>
-          <div class="cv"><canvas id="cv" role="img" aria-label="Interactive projected 3D model of a fictional well. Drag to rotate, right-drag or shift-drag to pan, scroll or pinch to zoom."></canvas></div>
-          <p class="hint">Drag: rotate · Shift/right-drag: pan · Wheel or pinch: zoom · Two-finger drag: pan</p>
+          <div class="cv" id="cvw"><div id="lbls"></div><div id="wfall" hidden>WebGL is unavailable in this browser, so the 3D well model cannot be shown. Production data and analysis remain available.</div></div>
+          <div class="legend" aria-label="Legend">
+            <span class="lg"><i style="background:#E7A33E"></i>Oil</span><span class="lg"><i style="background:#6FA8DC"></i>Water</span>
+            <span class="lg"><i style="background:#8a9099"></i>Casing</span><span class="lg"><i style="background:#d5dbe2"></i>Tubing</span>
+            <span class="lg"><i style="background:#b8a58a"></i>Cement</span><span class="lg"><i style="background:#ff6a3d"></i>Perforations</span>
+            <span class="lg"><i style="background:#6b4a1c"></i>Reservoir</span><span class="lg"><i style="background:#C45B55"></i>Mock restriction</span>
+          </div>
+          <div class="cinfo" id="cinfo" aria-live="polite">Click a component for details.</div>
+          <p class="hint">Drag: rotate · Right/Shift-drag or two-finger drag: pan · Wheel or pinch: zoom. Particles are an illustrative flow cue, not simulated fluid dynamics or measured velocity.</p>
         </div>
         <div id="result" aria-live="polite"></div>
       </section>
@@ -116,6 +125,11 @@
     </main>
   </div>
 </div>
+<script src="three.min.js"></script>
+<script>window.THREE||document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"><\/script>')</script>
+<script src="OrbitControl.js"></script>
+<script>(window.THREE&&THREE.OrbitControls)||document.write('<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"><\/script>')</script>
 <script src="script.js"></script>
+<script src="well3d.js"></script>
 </body>
-  </html>
+</html>

@@ -146,6 +146,7 @@ function renderAnalysis(){
   $('#winfo').innerHTML=info(w);
   $('#charts').innerHTML=charts(w,n);
   $('#obs').innerHTML=observations(w,n).map(x=>`<li>${x}</li>`).join('');
+  if(typeof Well3D!=='undefined')Well3D.show(w);
 }
 function renderSV(){
   const f=$('#svst').value,ws=WELLS.filter(w=>!f||w.status===f);
@@ -224,7 +225,6 @@ document.addEventListener('click',e=>{
   else if(d.print!==undefined)print();
   else if(d.reopen){setWell(d.reopen);location.hash='analysis'}
   else if(d.close!==undefined)$('#rview').innerHTML='';
-  else if(d.act)view3d(d.act);
 });
 $('#q').oninput=$('#stf').onchange=renderOverview;
 $('#svst').onchange=renderSV;
@@ -233,79 +233,6 @@ $('#wsel').onchange=e=>{setWell(e.target.value);renderAnalysis()};
 $('#iw').onchange=e=>{setWell(e.target.value);renderIV()};
 $('#price').oninput=$('#iv').oninput=calc;
 $('#analyse').onclick=runAnalysis;
-
-/* ---------- Projected 3D well model (canvas, no libraries) ---------- */
-const cv=$('#cv'),cx=cv.getContext('2d'),V0={yaw:-.6,pitch:.35,zoom:1,px:0,py:0},V={...V0},L3={geo:1,well:1,tgt:1,grid:1};
-const LAY=[['OVERBURDEN',0,-250,'rgba(70,76,88,.16)'],['SHALE',-250,-500,'rgba(70,76,88,.26)'],['CAPROCK',-500,-640,'rgba(95,101,113,.30)'],['RESERVOIR',-640,-820,'rgba(231,163,62,.20)'],['BASEMENT',-820,-950,'rgba(40,44,52,.45)']];
-const PATH=[[0,0,0],[0,-380,0],[40,-520,10],[120,-650,40],[220,-730,70],[260,-745,80]],TGT=[[200,-690,40],[290,-790,120]];
-let cw=0,ch=0,dpr=1,raf=0,anim=0;
-const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-function proj([x,y,z]){
-  const cy=Math.cos(V.yaw),sy=Math.sin(V.yaw),cp=Math.cos(V.pitch),sp=Math.sin(V.pitch);
-  const x1=x*cy-z*sy,z1=x*sy+z*cy,y2=(y+475)*cp-z1*sp,z2=(y+475)*sp+z1*cp;
-  const s=Math.min(cw/900,ch/1150)*V.zoom,f=2200/(2200+z2);
-  return[cw/2+V.px+x1*s*f,ch/2+V.py-y2*s*f,z2];
-}
-const seg=(a,b)=>{cx.beginPath();cx.moveTo(a[0],a[1]);cx.lineTo(b[0],b[1]);cx.stroke()};
-const lab=(t,x,y,c='#9CA3AF')=>{cx.fillStyle=c;cx.fillText(t,clamp(x,4,Math.max(4,cw-cx.measureText(t).width-4)),y)};
-function draw(){
-  if(!cw)return;
-  cx.setTransform(dpr,0,0,dpr,0,0);cx.clearRect(0,0,cw,ch);cx.font='11px Arial,sans-serif';cx.lineJoin='round';
-  const K=300,C=[[-K,-K],[K,-K],[K,K],[-K,K]];
-  if(L3.grid){cx.strokeStyle='rgba(156,163,175,.22)';cx.lineWidth=1;for(let k=-K;k<=K;k+=100){seg(proj([k,0,-K]),proj([k,0,K]));seg(proj([-K,0,k]),proj([K,0,k]))}}
-  if(L3.geo){
-    const F=[];
-    LAY.forEach(([n,a,b,c])=>C.forEach((p,k)=>{const q=C[(k+1)%4],f=[[p[0],a,p[1]],[q[0],a,q[1]],[q[0],b,q[1]],[p[0],b,p[1]]].map(proj);F.push([f,c,f.reduce((s,v)=>s+v[2],0)/4])}));
-    F.sort((u,v)=>v[2]-u[2]).forEach(([f,c])=>{cx.beginPath();f.forEach((v,i)=>i?cx.lineTo(v[0],v[1]):cx.moveTo(v[0],v[1]));cx.closePath();cx.fillStyle=c;cx.fill();cx.strokeStyle='rgba(156,163,175,.3)';cx.lineWidth=1;cx.stroke()});
-    LAY.forEach(([n,a,b])=>{const q=proj([K,(a+b)/2,K]);lab(`${n} ${-a}–${-b} m`,q[0]+8,q[1]+4)});
-    const g=proj([-K,0,K]);lab('GROUND SURFACE',g[0]-4,g[1]-6);
-  }
-  if(L3.tgt){
-    const[a,b]=TGT,v=[];for(let i=0;i<8;i++)v.push(proj([i&1?b[0]:a[0],i&2?b[1]:a[1],i&4?b[2]:a[2]]));
-    cx.strokeStyle='#E7A33E';cx.lineWidth=1.2;cx.setLineDash([4,3]);
-    [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]].forEach(([i,j])=>seg(v[i],v[j]));cx.setLineDash([]);
-    lab('TARGET ZONE',v[7][0]+6,v[7][1]-4,'#E7A33E');
-  }
-  if(L3.well){
-    cx.strokeStyle='#fff';cx.lineWidth=2.5;cx.beginPath();PATH.forEach((p,i)=>{const q=proj(p);i?cx.lineTo(q[0],q[1]):cx.moveTo(q[0],q[1])});cx.stroke();
-    const h=proj(PATH[0]),e=proj(PATH[5]);cx.fillStyle='#E7A33E';cx.fillRect(h[0]-4,h[1]-4,8,8);
-    lab('WELLHEAD',h[0]+8,h[1]-6,'#fff');lab('BOTTOM HOLE',e[0]+8,e[1]+4,'#fff');
-  }
-}
-const req=()=>{if(!raf)raf=requestAnimationFrame(()=>{raf=0;draw()})};
-function viewFor(pt,zoom,yaw=V.yaw,pitch=V.pitch){const o={...V};Object.assign(V,{yaw,pitch,zoom,px:0,py:0});const s=proj(pt);Object.assign(V,o);return{yaw,pitch,zoom,px:cw/2-s[0],py:ch/2-s[1]}}
-function goTo(t){
-  cancelAnimationFrame(anim);const a={...V},t0=performance.now(),ms=matchMedia('(prefers-reduced-motion: reduce)').matches?0:500;
-  const f=now=>{const k=ms?1:Math.min(1,(now-t0)/ms),e=k*k*(3-2*k);for(const q in t)V[q]=a[q]+(t[q]-a[q])*e;draw();if(k<1)anim=requestAnimationFrame(f)};
-  anim=requestAnimationFrame(f);
-}
-function zoomAt(x,y,k){
-  const r=cv.getBoundingClientRect(),lx=x-r.left-cw/2,ly=y-r.top-ch/2,nz=clamp(V.zoom*k,.4,8);k=nz/V.zoom;
-  V.px=lx-(lx-V.px)*k;V.py=ly-(ly-V.py)*k;V.zoom=nz;
-}
-const clampPan=()=>{const l=Math.max(cw,ch)*V.zoom*.5;V.px=clamp(V.px,-l,l);V.py=clamp(V.py,-l,l)};
-function view3d(a){
-  const r=cv.getBoundingClientRect(),mid=[0,-475,0];
-  if(a==='in'||a==='out'){cancelAnimationFrame(anim);zoomAt(r.left+cw/2,r.top+ch/2,a==='in'?1.25:.8);clampPan();req()}
-  else if(a==='reset')goTo({...V0});
-  else if(a==='fit'||a==='full')goTo(viewFor(mid,1));
-  else if(a==='head')goTo(viewFor([0,-20,0],3.2));
-  else if(a==='res')goTo(viewFor([220,-730,70],2.6));
-}
-$$('[data-l]').forEach(c=>c.onchange=()=>{L3[c.dataset.l]=c.checked?1:0;req()});
-cv.addEventListener('wheel',e=>{e.preventDefault();cancelAnimationFrame(anim);zoomAt(e.clientX,e.clientY,Math.exp(-e.deltaY*.0015));clampPan();req()},{passive:false});
-const PT=new Map();let G=null,pan=false;
-const meas=()=>{const a=[...PT.values()];return a.length===2?{d:Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y),x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}:a.length?{d:0,x:a[0].x,y:a[0].y}:null};
-cv.onpointerdown=e=>{cv.setPointerCapture(e.pointerId);cancelAnimationFrame(anim);PT.set(e.pointerId,{x:e.clientX,y:e.clientY});G=meas();pan=e.button===2||e.shiftKey};
-cv.onpointermove=e=>{
-  if(!PT.has(e.pointerId))return;PT.set(e.pointerId,{x:e.clientX,y:e.clientY});const m=meas();
-  if(PT.size===2&&G&&G.d){zoomAt(m.x,m.y,m.d/G.d);V.px+=m.x-G.x;V.py+=m.y-G.y}
-  else if(PT.size===1&&G){const dx=m.x-G.x,dy=m.y-G.y;if(pan){V.px+=dx;V.py+=dy}else{V.yaw+=dx*.008;V.pitch=clamp(V.pitch+dy*.006,-1.2,1.4)}}
-  G=m;clampPan();req();
-};
-cv.onpointerup=cv.onpointercancel=e=>{PT.delete(e.pointerId);G=meas()};
-cv.oncontextmenu=e=>e.preventDefault();
-new ResizeObserver(()=>{dpr=devicePixelRatio||1;cw=cv.clientWidth;ch=cv.clientHeight;cv.width=Math.round(cw*dpr);cv.height=Math.round(ch*dpr);draw()}).observe(cv);
 
 setWell(S.well);
 show();
