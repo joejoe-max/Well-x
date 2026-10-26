@@ -5,7 +5,7 @@ const T=THREE,box=$('#cvw'),lbl=$('#lbls'),inf=$('#cinfo'),V3=(x,y,z)=>new T.Vec
 let R;
 try{R=new T.WebGLRenderer({antialias:true});if(!R.getContext())throw 0}catch(e){$('#wfall').hidden=false;return{show(){}}}
 R.setPixelRatio(Math.min(devicePixelRatio||1,2));R.localClippingEnabled=true;R.domElement.setAttribute('aria-label','Interactive 3D well model. Drag to rotate, right-drag to pan, scroll or pinch to zoom.');box.prepend(R.domElement);
-const sc=new T.Scene(),cam=new T.PerspectiveCamera(40,1,.5,700),ctl=new T.OrbitControls(cam,R.domElement),plane=new T.Plane(V3(0,0,-1),0),rc=new T.Raycaster();
+const sc=new T.Scene(),cam=new T.PerspectiveCamera(40,1,1.5,500),ctl=new T.OrbitControls(cam,R.domElement),plane=new T.Plane(V3(0,0,-1),0),rc=new T.Raycaster();
 sc.background=new T.Color('#08090B');
 sc.add(new T.AmbientLight(0xffffff,.6),new T.HemisphereLight(0xdde6f0,0x20242a,.5));
 const dl=new T.DirectionalLight(0xffffff,.8);dl.position.set(40,70,90);sc.add(dl);
@@ -49,11 +49,8 @@ function build(w){
     const m=clipM(M(l.c,{map:noise,transparent:true,emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'}));layerMats.push(m);
     const me=add(geoG,new T.Mesh(new T.BoxGeometry(60,l.h,60),m),l.n,`${l.n}: synthetic layer, ${l.top}–${l.top+l.h} depth units. Not real formation data.`);
     me.position.y=-(l.top+l.h/2);
-    /* Keep formation outlines just outside each block. Coplanar edge lines can z-fight
-       with the geological faces while the camera orbits, making the model shimmer. */
-    const edgeGeo=new T.EdgesGeometry(new T.BoxGeometry(60.06,l.h+.06,60.06));
-    const e=new T.LineSegments(edgeGeo,clipM(new T.LineBasicMaterial({color:'#9CA3AF',transparent:true,opacity:.3,depthWrite:false})));
-    e.position.copy(me.position);geoG.add(e);
+    /* Layer colours distinguish formations; avoid coplanar outline meshes, which can
+       compete with the layer faces in the depth buffer during camera movement. */
   });
   /* trajectory + pipe strings (separate hollow tubes along the path) */
   CV=new T.CatmullRomCurve3(c.pts.map(([x,y])=>V3(x,y,0)));
