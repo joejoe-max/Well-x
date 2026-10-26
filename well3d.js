@@ -48,13 +48,15 @@ function build(w){
      Separate overlapping layer meshes can fight at shared boundaries; a single
      indexed surface gives every visible wall exactly one owner. */
   const seamColor='#17191d';
-  const strataMats=c.layers.map(l=>clipM(M(l.c,{
-    map:null,transparent:false,opacity:1,
+  // Geological surfaces do not use GPU clipping. The cutaway is modeled
+  // explicitly, so the clipping plane cannot slice through coincident strata.
+  const strataMats=c.layers.map(l=>M(l.c,{
+    map:null,transparent:false,opacity:1,depthTest:true,depthWrite:true,
     emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'
-  })));
-  strataMats.push(clipM(M(seamColor,{map:null,transparent:false,opacity:1})));
+  }));
+  strataMats.push(M(seamColor,{map:null,transparent:false,opacity:1,depthTest:true,depthWrite:true}));
   layerMats=strataMats;
-  function buildStrataGeometry(layers){
+  function buildStrataGeometry(layers,cutaway){
     const positions=[],uvs=[],indices=[],groupsOut=[];
     let vertex=0,indexStart=0;
     const quad=(a,b,c,d,materialIndex)=>{
@@ -64,30 +66,37 @@ function build(w){
       groupsOut.push({start:indexStart,count:6,materialIndex});
       vertex+=4;indexStart+=6;
     };
-    const x0=-30,x1=30,z0=-30,z1=30,zSeam=.12;
+    const x0=-30,x1=30,zBack=-30,zFront=cutaway?0:30,zSeam=.12;
     const wall=(l,i,face)=>{
       const top=-l.top,bottom=-(l.top+l.h);
       const lo=bottom+(i===layers.length-1?0:zSeam/2);
       const hi=top-(i===0?0:zSeam/2);
-      // Leave a deliberate narrow seam at each interface; fill it with a
-      // dark band in this same mesh so adjacent colors cannot bleed together.
-      if(face===0)quad([x0,lo,z1],[x1,lo,z1],[x1,hi,z1],[x0,hi,z1],i);
-      if(face===1)quad([x1,lo,z0],[x0,lo,z0],[x0,hi,z0],[x1,hi,z0],i);
-      if(face===2)quad([x1,lo,z1],[x1,lo,z0],[x1,hi,z0],[x1,hi,z1],i);
-      if(face===3)quad([x0,lo,z0],[x0,lo,z1],[x0,hi,z1],[x0,hi,z0],i);
+      if(face===0&&!cutaway)quad([x0,lo,zFront],[x1,lo,zFront],[x1,hi,zFront],[x0,hi,zFront],i);
+      if(face===1)quad([x1,lo,zBack],[x0,lo,zBack],[x0,hi,zBack],[x1,hi,zBack],i);
+      if(face===2)quad([x1,lo,zFront],[x1,lo,zBack],[x1,hi,zBack],[x1,hi,zFront],i);
+      if(face===3)quad([x0,lo,zBack],[x0,lo,zFront],[x0,hi,zFront],[x0,hi,zBack],i);
       if(i>0){
         const sy=top-zSeam/2,by=top+zSeam/2;
-        if(face===0)quad([x0,by,z1],[x1,by,z1],[x1,sy,z1],[x0,sy,z1],layers.length);
-        if(face===1)quad([x1,by,z0],[x0,by,z0],[x0,sy,z0],[x1,sy,z0],layers.length);
-        if(face===2)quad([x1,by,z1],[x1,by,z0],[x1,sy,z0],[x1,sy,z1],layers.length);
-        if(face===3)quad([x0,by,z0],[x0,by,z1],[x0,sy,z1],[x0,sy,z0],layers.length);
+        if(face===0&&!cutaway)quad([x0,by,zFront],[x1,by,zFront],[x1,sy,zFront],[x0,sy,zFront],layers.length);
+        if(face===1)quad([x1,by,zBack],[x0,by,zBack],[x0,sy,zBack],[x1,sy,zBack],layers.length);
+        if(face===2)quad([x1,by,zFront],[x1,by,zBack],[x1,sy,zBack],[x1,sy,zFront],layers.length);
+        if(face===3)quad([x0,by,zBack],[x0,by,zFront],[x0,sy,zFront],[x0,sy,zBack],layers.length);
       }
     };
     layers.forEach((l,i)=>{
       for(let face=0;face<4;face++)wall(l,i,face);
       const top=-l.top,bottom=-(l.top+l.h);
-      if(i===0)quad([x0,top,z0],[x1,top,z0],[x1,top,z1],[x0,top,z1],i);
-      if(i===layers.length-1)quad([x0,bottom,z1],[x1,bottom,z1],[x1,bottom,z0],[x0,bottom,z0],i);
+      // Only the outermost top and bottom are capped. In cutaway mode the
+      // cap stops at the exposed cross-section, z=0.
+      if(i===0)quad([x0,top,zBack],[x1,top,zBack],[x1,top,zFront],[x0,top,zFront],i);
+      if(i===layers.length-1)quad([x0,bottom,zFront],[x1,bottom,zFront],[x1,bottom,zBack],[x0,bottom,zBack],i);
+      if(cutaway){
+        // Real, colored cross-section face at z=0 for every formation.
+        const lo=bottom+(i===layers.length-1?0:zSeam/2);
+        const hi=top-(i===0?0:zSeam/2);
+        quad([x0,lo,0],[x1,lo,0],[x1,hi,0],[x0,hi,0],i);
+        if(i>0)quad([x0,top+zSeam/2,0],[x1,top+zSeam/2,0],[x1,top-zSeam/2,0],[x0,top-zSeam/2,0],layers.length);
+      }
     });
     const g=new T.BufferGeometry();
     g.setAttribute('position',new T.Float32BufferAttribute(positions,3));
@@ -97,9 +106,12 @@ function build(w){
     g.computeVertexNormals();
     return g;
   }
-  const strata=add(geoG,new T.Mesh(buildStrataGeometry(c.layers),strataMats),
+  const strataFull=add(geoG,new T.Mesh(buildStrataGeometry(c.layers,false),strataMats),
     'Geological formations','Synthetic geological formation layers. Select the colored outer walls to inspect the model.');
-  strata.renderOrder=0;
+  const strataCut=add(geoG,new T.Mesh(buildStrataGeometry(c.layers,true),strataMats),
+    'Geological formations (cutaway)','Explicit geological cross-section. Synthetic formation layers.');
+  strataFull.renderOrder=0;strataCut.renderOrder=0;
+  strataFull.visible=!cutOn;strataCut.visible=cutOn;
   /* trajectory + pipe strings (separate hollow tubes along the path) */
   CV=new T.CatmullRomCurve3(c.pts.map(([x,y])=>V3(x,y,0)));
   const tube=(u0,u1,r,m,n=40)=>{const p=[];for(let k=0;k<=n;k++)p.push(CV.getPointAt(u0+(u1-u0)*k/n));return new T.Mesh(new T.TubeGeometry(new T.CatmullRomCurve3(p),n*2,r,20,false),m)};
@@ -151,8 +163,13 @@ function build(w){
   inf.textContent=`${c.id}: ${c.kind} trajectory, ${c.status}. ILLUSTRATIVE CONFIGURATION — synthetic dimensions, depths and flow factor ${c.flow.toFixed(2)}${c.status==='Shut-in'?' (shut-in: flow animation stopped)':''}${c.restr?`; mock restriction at ${c.restr.tvd} depth units`:''}. Click a component for details.`;
 }
 function applyToggles(){
-  plane.constant=cutOn?0:1e4;
-  layerMats.forEach(m=>{const transparent=!cutOn;m.transparent=transparent;m.opacity=cutOn?1:.22;m.depthWrite=!transparent;m.needsUpdate=true});
+  // Switch between two explicit geological shells instead of clipping one
+  // shell at z=0. This avoids coplanar/clipped strata boundaries.
+  plane.constant=0;
+  if(groups.geo){
+    const shells=groups.geo.children.filter(o=>o.userData&&o.userData.info&&o.userData.info[0].startsWith('Geological formations'));
+    shells.forEach(o=>{o.visible=cutOn?o.userData.info[0].includes('(cutaway)'):!o.userData.info[0].includes('(cutaway)')});
+  }
   pts.visible=flowOn&&N>0;
   $$('[data-t]').forEach(c=>{const t=c.dataset.t;if(t==='geo'&&groups.geo)groups.geo.visible=c.checked;if(t==='pipes'&&groups.pipes)groups.pipes.visible=c.checked;if(t==='labels')lbl.hidden=!c.checked});
 }
