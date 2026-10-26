@@ -49,7 +49,11 @@ function build(w){
     const m=clipM(M(l.c,{map:noise,transparent:true,emissive:l.n.startsWith('Oil')?'#3a2406':'#000000'}));layerMats.push(m);
     const me=add(geoG,new T.Mesh(new T.BoxGeometry(60,l.h,60),m),l.n,`${l.n}: synthetic layer, ${l.top}–${l.top+l.h} depth units. Not real formation data.`);
     me.position.y=-(l.top+l.h/2);
-    const e=new T.LineSegments(new T.EdgesGeometry(me.geometry),clipM(new T.LineBasicMaterial({color:'#9CA3AF',transparent:true,opacity:.35})));e.position.copy(me.position);geoG.add(e);
+    /* Keep formation outlines just outside each block. Coplanar edge lines can z-fight
+       with the geological faces while the camera orbits, making the model shimmer. */
+    const edgeGeo=new T.EdgesGeometry(new T.BoxGeometry(60.06,l.h+.06,60.06));
+    const e=new T.LineSegments(edgeGeo,clipM(new T.LineBasicMaterial({color:'#9CA3AF',transparent:true,opacity:.3,depthWrite:false})));
+    e.position.copy(me.position);geoG.add(e);
   });
   /* trajectory + pipe strings (separate hollow tubes along the path) */
   CV=new T.CatmullRomCurve3(c.pts.map(([x,y])=>V3(x,y,0)));
